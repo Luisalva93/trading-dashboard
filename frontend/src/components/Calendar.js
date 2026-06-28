@@ -65,7 +65,7 @@ export default function Calendar({ year, month, trades, onDayClick }) {
           .map(d => tradeMap[dateStr(d)])
           .filter(Boolean);
         const weekPnl = weekTrades.reduce((s, t) => s + parseFloat(t.pnl), 0);
-        const weekCount = weekTrades.reduce((s, t) => s + t.num_trades, 0);
+        const weekCount = weekTrades.reduce((s, t) => s + parseInt(t.num_trades || 0), 0);
         const weekWin = weekTrades.filter(t => parseFloat(t.pnl) > 0).length;
         const weekPositive = weekPnl > 0;
 
