@@ -3,7 +3,7 @@ import Calendar from './components/Calendar';
 import StatsBar from './components/StatsBar';
 import PnlChart from './components/PnlChart';
 import TradeModal from './components/TradeModal';
-import { fetchTrades, saveTrade, deleteTrade } from './api';
+import { fetchTrades, fetchMonthStats } from './api';
 
 const MONTHS_ES = [
   'Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -15,6 +15,7 @@ export default function App() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [trades, setTrades] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
@@ -23,8 +24,12 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchTrades(year, month);
-      setTrades(data);
+      const [tradeData, statsData] = await Promise.all([
+        fetchTrades(year, month),
+        fetchMonthStats(year, month),
+      ]);
+      setTrades(tradeData);
+      setStats(statsData);
     } catch (e) {
       setError('No se pudo conectar con el servidor.');
     } finally {
@@ -43,22 +48,6 @@ export default function App() {
     else setMonth(m => m + 1);
   };
 
-  const handleSave = async (data) => {
-    try {
-      await saveTrade(data);
-      setModal(null);
-      load();
-    } catch { setError('Error guardando. Intenta de nuevo.'); }
-  };
-
-  const handleDelete = async (date) => {
-    try {
-      await deleteTrade(date);
-      setModal(null);
-      load();
-    } catch { setError('Error eliminando.'); }
-  };
-
   return (
     <div style={{
       maxWidth: '1100px', margin: '0 auto',
@@ -75,10 +64,9 @@ export default function App() {
             letterSpacing: '-0.01em', color: 'var(--text)',
           }}>📈 Trading Dashboard</div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Haz clic en cualquier día para registrar o editar
+            Haz clic en cualquier día para registrar trades
           </div>
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button onClick={prevMonth} style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
@@ -89,9 +77,7 @@ export default function App() {
             fontFamily: 'var(--mono)', fontWeight: 600,
             fontSize: 'clamp(0.85rem, 2vw, 1rem)',
             color: 'var(--text)', minWidth: '140px', textAlign: 'center',
-          }}>
-            {MONTHS_ES[month - 1]} {year}
-          </div>
+          }}>{MONTHS_ES[month - 1]} {year}</div>
           <button onClick={nextMonth} style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
             color: 'var(--text)', borderRadius: '8px', width: '36px', height: '36px',
@@ -117,24 +103,23 @@ export default function App() {
         }}>{error}</div>
       )}
 
-      <StatsBar trades={trades} />
+      <StatsBar trades={trades} stats={stats} />
       <PnlChart trades={trades} />
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
-          Cargando...
-        </div>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando...</div>
       ) : (
-        <Calendar year={year} month={month} trades={trades} onDayClick={(d, t) => setModal({ date: d, existing: t })} />
+        <Calendar
+          year={year} month={month} trades={trades}
+          onDayClick={(date) => setModal(date)}
+        />
       )}
 
       {modal && (
         <TradeModal
-          date={modal.date}
-          existing={modal.existing}
-          onSave={handleSave}
-          onDelete={handleDelete}
+          date={modal}
           onClose={() => setModal(null)}
+          onRefresh={load}
         />
       )}
     </div>

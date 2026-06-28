@@ -93,7 +93,7 @@ export default function Calendar({ year, month, trades, onDayClick }) {
               return (
                 <div
                   key={ds}
-                  onClick={() => onDayClick(ds, trade)}
+                  onClick={() => onDayClick(ds)}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                   style={{
