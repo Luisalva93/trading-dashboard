@@ -29,8 +29,13 @@ export default function PnlChart({ trades }) {
   let cumulative = 0;
   const data = sorted.map(t => {
     cumulative += parseFloat(t.pnl);
+    // Fix: parse date parts manually to avoid timezone issues
+    const [y, m, d] = t.date.slice(0, 10).split('-').map(Number);
+    const label = new Date(y, m - 1, d).toLocaleDateString('es-MX', {
+      day: 'numeric', month: 'short'
+    });
     return {
-      label: new Date(t.date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }),
+      label,
       pnl: parseFloat(t.pnl),
       acumulado: parseFloat(cumulative.toFixed(2)),
     };
@@ -43,7 +48,7 @@ export default function PnlChart({ trades }) {
   return (
     <div style={{
       background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: '14px', padding: '20px 24px', marginBottom: '24px',
+      borderRadius: '14px', padding: '20px 16px', marginBottom: '24px',
     }}>
       <div style={{
         fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase',
@@ -64,12 +69,26 @@ export default function PnlChart({ trades }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--mono)' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            axisLine={false} tickLine={false}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fill: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--mono)' }}
+            axisLine={false} tickLine={false}
+            tickFormatter={v => `$${v}`}
+            width={55}
+          />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="4 4" />
-          <Area type="monotone" dataKey="acumulado" stroke={strokeColor} strokeWidth={2}
-            fill={`url(#${gradientId})`} dot={false} activeDot={{ r: 4, fill: strokeColor }} />
+          <Area
+            type="monotone" dataKey="acumulado"
+            stroke={strokeColor} strokeWidth={2}
+            fill={`url(#${gradientId})`}
+            dot={false} activeDot={{ r: 4, fill: strokeColor }}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>
