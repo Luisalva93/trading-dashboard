@@ -6,7 +6,7 @@ export default function Calendar({ year, month, trades, onDayClick }) {
   const [tooltip, setTooltip] = useState(null);
 
   const tradeMap = {};
-  trades.forEach(t => { tradeMap[t.date.slice(0, 10)] = t; });
+  trades.forEach(t => { const d = typeof t.date === 'string' ? t.date : new Date(t.date).toISOString(); tradeMap[d.slice(0, 10)] = t; });
 
   const today = new Date();
   const firstDayOfMonth = new Date(year, month - 1, 1).getDay(); // 0=Sun

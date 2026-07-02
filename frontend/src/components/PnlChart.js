@@ -30,7 +30,7 @@ export default function PnlChart({ trades }) {
   const data = sorted.map(t => {
     cumulative += parseFloat(t.pnl);
     // Fix: parse date parts manually to avoid timezone issues
-    const [y, m, d] = t.date.slice(0, 10).split('-').map(Number);
+    const dateStr2 = typeof t.date === 'string' ? t.date : new Date(t.date).toISOString(); const [y, m, d] = dateStr2.slice(0, 10).split('-').map(Number);
     const label = new Date(y, m - 1, d).toLocaleDateString('es-MX', {
       day: 'numeric', month: 'short'
     });
