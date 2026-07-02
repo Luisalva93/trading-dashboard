@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db/init');
 
-// GET all months with summary data
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -22,10 +21,9 @@ router.get('/', async (req, res) => {
       ORDER BY year DESC, month DESC
     `);
 
-    // For each month get daily pnl for sparkline
     const months = await Promise.all(result.rows.map(async (row) => {
       const dailyResult = await pool.query(`
-        SELECT date::text, SUM(pnl) AS day_pnl
+        SELECT TO_CHAR(date, 'YYYY-MM-DD') AS date, SUM(pnl) AS day_pnl
         FROM trades
         WHERE EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
         GROUP BY date ORDER BY date ASC
@@ -38,8 +36,7 @@ router.get('/', async (req, res) => {
       });
 
       const winRateTrades = parseInt(row.total_trades) > 0
-        ? Math.round((parseInt(row.winning_trades) / parseInt(row.total_trades)) * 100)
-        : 0;
+        ? Math.round((parseInt(row.winning_trades) / parseInt(row.total_trades)) * 100) : 0;
 
       const profitFactor = parseFloat(row.gross_loss) > 0
         ? (parseFloat(row.gross_profit) / parseFloat(row.gross_loss)).toFixed(2)
