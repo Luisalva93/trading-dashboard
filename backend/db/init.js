@@ -8,11 +8,7 @@ const pool = new Pool({
 async function initDB() {
   const client = await pool.connect();
   try {
-    // Drop old table and create new structure
-    await client.query(`DROP TABLE IF EXISTS trade_days CASCADE;`);
-    await client.query(`DROP TABLE IF EXISTS trades CASCADE;`);
-
-    // Day-level notes only
+    // NEVER DROP TABLES - only create if they don't exist
     await client.query(`
       CREATE TABLE IF NOT EXISTS trade_days (
         id SERIAL PRIMARY KEY,
@@ -23,7 +19,6 @@ async function initDB() {
       );
     `);
 
-    // Individual trades
     await client.query(`
       CREATE TABLE IF NOT EXISTS trades (
         id SERIAL PRIMARY KEY,
@@ -36,7 +31,7 @@ async function initDB() {
       );
     `);
 
-    console.log('Database initialized (v2 - individual trades)');
+    console.log('Database ready (v2 - safe init)');
   } finally {
     client.release();
   }
