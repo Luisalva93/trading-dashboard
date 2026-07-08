@@ -6,18 +6,25 @@ const MONTHS_ES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','
 function renderAnalysis(text) {
   const lines = text.split('\n');
   return lines.map((line, i) => {
-    if (line.startsWith('**') && line.endsWith('**')) {
-      return <div key={i} style={{ fontWeight: 700, color: 'var(--text)', fontSize: '1rem', marginTop: '20px', marginBottom: '6px', borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>{line.replace(/\*\*/g, '')}</div>;
+    const clean = line.replace(/^#{1,3}\s*/, '').replace(/\*\*/g, '');
+    if (line.match(/^#{1,2}\s/)) {
+      return <div key={i} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '24px', marginBottom: '8px' }}>{clean}</div>;
     }
-    if (line.match(/^\d+\.\s\*\*/)) {
-      const clean = line.replace(/\*\*/g, '');
-      return <div key={i} style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.95rem', marginTop: '16px', marginBottom: '4px' }}>{clean}</div>;
+    if (line.match(/^###\s/)) {
+      return <div key={i} style={{ fontWeight: 700, color: 'var(--text)', fontSize: '1rem', marginTop: '16px', marginBottom: '6px', borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>{clean}</div>;
     }
-    if (line.startsWith('- ') || line.startsWith('• ')) {
-      return <div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.9rem', paddingLeft: '16px', marginBottom: '4px', lineHeight: 1.6 }}>{'→ ' + line.slice(2)}</div>;
+    if (line.startsWith('→') || line.startsWith('- ') || line.startsWith('• ')) {
+      const content = line.replace(/^[→\-•]\s*/, '');
+      return <div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.88rem', paddingLeft: '16px', marginBottom: '5px', lineHeight: 1.6 }}>→ {content.replace(/\*\*/g, '')}</div>;
     }
-    if (line.trim() === '') return <div key={i} style={{ height: '8px' }} />;
-    return <div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '4px' }}>{line.replace(/\*\*/g, '')}</div>;
+    if (line.match(/^\d+\.\s/)) {
+      return <div key={i} style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.92rem', marginTop: '10px', marginBottom: '4px' }}>{clean}</div>;
+    }
+    if (line.match(/^---+$/)) {
+      return <div key={i} style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />;
+    }
+    if (line.trim() === '') return <div key={i} style={{ height: '6px' }} />;
+    return <div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '3px' }}>{line.replace(/\*\*/g, '')}</div>;
   });
 }
 
@@ -33,9 +40,7 @@ export default function Analysis({ currentYear, currentMonth }) {
   for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) years.push(y);
 
   const analyze = async () => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    setLoading(true); setError(null); setResult(null);
     try {
       const res = await fetch(BASE + '/api/analysis/monthly', {
         method: 'POST',
@@ -54,46 +59,29 @@ export default function Analysis({ currentYear, currentMonth }) {
 
   return (
     <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-      {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)', marginBottom: '4px' }}>
-          🧠 Análisis Psicológico IA
-        </div>
-        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          Detecta patrones emocionales y comportamientos en tu trading
-        </div>
+        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text)', marginBottom: '4px' }}>🧠 Análisis Psicológico IA</div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Detecta patrones emocionales y comportamientos en tu trading</div>
       </div>
 
-      {/* Controls */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '120px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>Mes</label>
-            <select
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(parseInt(e.target.value))}
-              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
-            >
-              {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-                <option key={m} value={m}>{MONTHS_ES[m]}</option>
-              ))}
+            <select value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))}
+              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}>
+              {Array.from({length:12},(_,i)=>i+1).map(m => <option key={m} value={m}>{MONTHS_ES[m]}</option>)}
             </select>
           </div>
           <div style={{ flex: 1, minWidth: '100px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>Año</label>
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(parseInt(e.target.value))}
-              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
-            >
+            <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}
+              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <button
-            onClick={analyze}
-            disabled={loading}
-            style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: loading ? 'var(--border)' : 'var(--accent)', color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--sans)', fontSize: '0.95rem', fontWeight: 600, whiteSpace: 'nowrap' }}
-          >
+          <button onClick={analyze} disabled={loading}
+            style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: loading ? 'var(--border)' : 'var(--accent)', color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--sans)', fontSize: '0.95rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
             {loading ? 'Analizando...' : '🧠 Analizar mes'}
           </button>
         </div>
@@ -104,32 +92,18 @@ export default function Analysis({ currentYear, currentMonth }) {
         )}
       </div>
 
-      {error && (
-        <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: '10px', padding: '14px 16px', color: 'var(--red)', fontSize: '0.85rem', marginBottom: '16px' }}>
-          {error}
-        </div>
-      )}
+      {error && <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: '10px', padding: '14px 16px', color: 'var(--red)', fontSize: '0.85rem', marginBottom: '16px' }}>{error}</div>}
 
       {result && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px' }}>
-          {/* Summary chips */}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Análisis de <strong style={{ color: 'var(--text)' }}>{MONTHS_ES[selectedMonth]} {selectedYear}</strong>
-            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Análisis de <strong style={{ color: 'var(--text)' }}>{MONTHS_ES[selectedMonth]} {selectedYear}</strong></div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>·</div>
-            <div style={{ fontSize: '0.8rem', color: result.totalPnl >= 0 ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--mono)', fontWeight: 600 }}>
-              {result.totalPnl >= 0 ? '+' : ''}${result.totalPnl.toFixed(0)}
-            </div>
+            <div style={{ fontSize: '0.8rem', color: result.totalPnl >= 0 ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--mono)', fontWeight: 600 }}>{result.totalPnl >= 0 ? '+' : ''}${result.totalPnl.toFixed(0)}</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>·</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{result.totalTrades} trades · {result.winRate}% win rate</div>
           </div>
-
-          {/* Analysis text */}
-          <div style={{ lineHeight: 1.7 }}>
-            {renderAnalysis(result.analysis)}
-          </div>
-
+          <div style={{ lineHeight: 1.7 }}>{renderAnalysis(result.analysis)}</div>
           <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)', fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'right' }}>
             Análisis generado por Claude IA · Basado en tus trades y notas reales
           </div>
