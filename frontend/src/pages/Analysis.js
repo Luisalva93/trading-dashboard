@@ -3,29 +3,103 @@ import React, { useState } from 'react';
 const BASE = process.env.REACT_APP_API_URL || '';
 const MONTHS_ES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+function parseTable(lines, startIndex) {
+  const tableLines = [];
+  let i = startIndex;
+  while (i < lines.length && lines[i].trim().startsWith('|')) {
+    tableLines.push(lines[i].trim());
+    i++;
+  }
+  if (tableLines.length < 2) return { table: null, endIndex: startIndex };
+
+  const headers = tableLines[0].split('|').map(h => h.trim()).filter(Boolean);
+  const rows = tableLines.slice(2).map(row =>
+    row.split('|').map(c => c.trim()).filter(Boolean)
+  ).filter(row => row.length > 0);
+
+  return { table: { headers, rows }, endIndex: i };
+}
+
+function TableComponent({ headers, rows }) {
+  return (
+    <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+        <thead>
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i} style={{ padding: '8px 12px', background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: 600, textAlign: 'left', whiteSpace: 'nowrap' }}>
+                {h.replace(/\*\*/g, '')}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+              {row.map((cell, j) => (
+                <td key={j} style={{ padding: '8px 12px', border: '1px solid var(--border)', color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                  {cell.replace(/\*\*/g, '')}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function renderAnalysis(text) {
   const lines = text.split('\n');
-  return lines.map((line, i) => {
-    const clean = line.replace(/^#{1,3}\s*/, '').replace(/\*\*/g, '');
+  const elements = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const clean = line.replace(/^#{1,4}\s*/, '').replace(/\*\*/g, '');
+
+    // Table detection
+    if (line.trim().startsWith('|')) {
+      const { table, endIndex } = parseTable(lines, i);
+      if (table) {
+        elements.push(<TableComponent key={i} headers={table.headers} rows={table.rows} />);
+        i = endIndex;
+        continue;
+      }
+    }
+
+    // H1/H2 headers
     if (line.match(/^#{1,2}\s/)) {
-      return <div key={i} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '24px', marginBottom: '8px' }}>{clean}</div>;
+      elements.push(<div key={i} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '24px', marginBottom: '8px' }}>{clean}</div>);
     }
-    if (line.match(/^###\s/)) {
-      return <div key={i} style={{ fontWeight: 700, color: 'var(--text)', fontSize: '1rem', marginTop: '16px', marginBottom: '6px', borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>{clean}</div>;
+    // H3 headers
+    else if (line.match(/^###\s/)) {
+      elements.push(<div key={i} style={{ fontWeight: 700, color: 'var(--text)', fontSize: '1rem', marginTop: '16px', marginBottom: '6px', borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>{clean}</div>);
     }
-    if (line.startsWith('→') || line.startsWith('- ') || line.startsWith('• ')) {
-      const content = line.replace(/^[→\-•]\s*/, '');
-      return <div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.88rem', paddingLeft: '16px', marginBottom: '5px', lineHeight: 1.6 }}>→ {content.replace(/\*\*/g, '')}</div>;
+    // Bullets
+    else if (line.startsWith('→') || line.startsWith('- ') || line.startsWith('• ')) {
+      const content = line.replace(/^[→\-•]\s*/, '').replace(/\*\*/g, '');
+      elements.push(<div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.88rem', paddingLeft: '16px', marginBottom: '5px', lineHeight: 1.6 }}>→ {content}</div>);
     }
-    if (line.match(/^\d+\.\s/)) {
-      return <div key={i} style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.92rem', marginTop: '10px', marginBottom: '4px' }}>{clean}</div>;
+    // Numbered list
+    else if (line.match(/^\d+\.\s/)) {
+      elements.push(<div key={i} style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.92rem', marginTop: '10px', marginBottom: '4px' }}>{clean}</div>);
     }
-    if (line.match(/^---+$/)) {
-      return <div key={i} style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />;
+    // Divider
+    else if (line.match(/^---+$/)) {
+      elements.push(<div key={i} style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />);
     }
-    if (line.trim() === '') return <div key={i} style={{ height: '6px' }} />;
-    return <div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '3px' }}>{line.replace(/\*\*/g, '')}</div>;
-  });
+    // Empty line
+    else if (line.trim() === '') {
+      elements.push(<div key={i} style={{ height: '6px' }} />);
+    }
+    // Normal text
+    else {
+      elements.push(<div key={i} style={{ color: 'var(--text-dim)', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '3px' }}>{line.replace(/\*\*/g, '')}</div>);
+    }
+    i++;
+  }
+  return elements;
 }
 
 export default function Analysis({ currentYear, currentMonth }) {
@@ -57,6 +131,8 @@ export default function Analysis({ currentYear, currentMonth }) {
     }
   };
 
+  const selectStyle = { width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' };
+
   return (
     <div style={{ maxWidth: '760px', margin: '0 auto' }}>
       <div style={{ marginBottom: '24px' }}>
@@ -68,15 +144,13 @@ export default function Analysis({ currentYear, currentMonth }) {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '120px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>Mes</label>
-            <select value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))}
-              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}>
+            <select value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))} style={selectStyle}>
               {Array.from({length:12},(_,i)=>i+1).map(m => <option key={m} value={m}>{MONTHS_ES[m]}</option>)}
             </select>
           </div>
           <div style={{ flex: 1, minWidth: '100px' }}>
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>Año</label>
-            <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}
-              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}>
+            <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} style={selectStyle}>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
