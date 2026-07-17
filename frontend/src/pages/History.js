@@ -34,6 +34,15 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+function MetricChip({ label, value, color }) {
+  return (
+    <div>
+      <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</div>
+      <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: '0.82rem', color: color || 'var(--text)', marginTop: '2px' }}>{value}</div>
+    </div>
+  );
+}
+
 export default function History({ onSelectMonth }) {
   const [months, setMonths] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,15 +59,14 @@ export default function History({ onSelectMonth }) {
   const totalMonths = months.length;
   const profitableMonths = months.filter(m => parseFloat(m.total_pnl) > 0).length;
 
-  // Build global cumulative chart data (oldest to newest)
-  const globalChartData = [...months].reverse().map(m => ({
-    label: MONTHS_ES[m.month].slice(0, 3) + ' ' + String(m.year).slice(2),
-    pnl: parseFloat(m.total_pnl),
-  }));
-  let cumulative = 0;
-  const globalChartWithCumulative = globalChartData.map(d => {
-    cumulative += d.pnl;
-    return { ...d, acumulado: parseFloat(cumulative.toFixed(2)) };
+  const globalChartData = [...months].reverse();
+  let cum = 0;
+  const globalChartWithCumulative = globalChartData.map(m => {
+    cum += parseFloat(m.total_pnl);
+    return {
+      label: MONTHS_ES[m.month].slice(0, 3) + ' ' + String(m.year).slice(2),
+      acumulado: parseFloat(cum.toFixed(2)),
+    };
   });
   const isGlobalPositive = totalAllTime >= 0;
 
@@ -72,7 +80,7 @@ export default function History({ onSelectMonth }) {
 
   return (
     <div>
-      {/* Summary stats */}
+      {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginBottom: '20px' }}>
         {[
           { label: 'P&L Total', value: (totalAllTime >= 0 ? '+' : '') + '$' + totalAllTime.toFixed(0), color: totalAllTime >= 0 ? 'var(--green)' : 'var(--red)' },
@@ -87,40 +95,32 @@ export default function History({ onSelectMonth }) {
         ))}
       </div>
 
-      {/* Global chart toggle button */}
+      {/* Global chart toggle */}
       <div style={{ marginBottom: '16px' }}>
-        <button
-          onClick={() => setShowGlobalChart(!showGlobalChart)}
-          style={{
-            padding: '9px 18px', borderRadius: '8px', cursor: 'pointer',
-            border: '1px solid ' + (showGlobalChart ? 'var(--accent)' : 'var(--border)'),
-            background: showGlobalChart ? 'var(--accent-glow)' : 'var(--surface)',
-            color: showGlobalChart ? 'var(--accent)' : 'var(--text-muted)',
-            fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
-          }}
-        >
+        <button onClick={() => setShowGlobalChart(!showGlobalChart)} style={{
+          padding: '9px 18px', borderRadius: '8px', cursor: 'pointer',
+          border: '1px solid ' + (showGlobalChart ? 'var(--accent)' : 'var(--border)'),
+          background: showGlobalChart ? 'var(--accent-glow)' : 'var(--surface)',
+          color: showGlobalChart ? 'var(--accent)' : 'var(--text-muted)',
+          fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
+        }}>
           <span>{showGlobalChart ? '▼' : '▶'}</span>
           📈 Curva global de todos los meses
         </button>
       </div>
 
-      {/* Global chart */}
       {showGlobalChart && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            P&L Acumulado — Todos los meses
-          </div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: '16px' }}>P&L Acumulado — Todos los meses</div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={globalChartWithCumulative} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="globalGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#00c87a" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#00c87a" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#00c87a" stopOpacity={0.25} /><stop offset="95%" stopColor="#00c87a" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="globalRed" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#e84040" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#e84040" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#e84040" stopOpacity={0.25} /><stop offset="95%" stopColor="#e84040" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -132,24 +132,29 @@ export default function History({ onSelectMonth }) {
                 stroke={isGlobalPositive ? '#00c87a' : '#e84040'} strokeWidth={2}
                 fill={isGlobalPositive ? 'url(#globalGreen)' : 'url(#globalRed)'}
                 dot={{ fill: isGlobalPositive ? '#00c87a' : '#e84040', r: 4 }}
-                activeDot={{ r: 5 }}
-              />
+                activeDot={{ r: 5 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
 
       {/* Month cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '12px' }}>
         {months.map((m, i) => {
           const pnl = parseFloat(m.total_pnl);
           const positive = pnl >= 0;
           const pf = parseFloat(m.profitFactor);
+          const sharpe = m.sharpeRatio;
+          const recovery = m.recoveryFactor;
+          const sharpeColor = !sharpe ? 'var(--text)' : sharpe >= 1 ? 'var(--green)' : sharpe >= 0 ? '#f59e0b' : 'var(--red)';
+          const recoveryColor = !recovery ? 'var(--text)' : recovery >= 2 ? 'var(--green)' : recovery >= 1 ? '#f59e0b' : 'var(--red)';
+
           return (
             <div key={i} onClick={() => onSelectMonth(m.year, m.month)}
               onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
               style={{ background: 'var(--surface)', border: '1px solid ' + (positive ? 'var(--green-border)' : 'var(--red-border)'), borderRadius: '14px', padding: '18px 20px', cursor: 'pointer', transition: 'transform 0.15s' }}>
+              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)' }}>{MONTHS_ES[m.month]} {m.year}</div>
@@ -159,19 +164,21 @@ export default function History({ onSelectMonth }) {
                   {positive ? '+' : ''}${Math.abs(pnl).toFixed(0)}
                 </div>
               </div>
+
               <Sparkline data={m.sparkline} positive={positive} />
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                {[
-                  { label: 'Win %', value: m.winRateTrades + '%' },
-                  { label: 'Profit F.', value: isNaN(pf) ? m.profitFactor : pf.toFixed(2) },
-                  { label: 'Mejor', value: '+$' + parseFloat(m.best_trade).toFixed(0) },
-                  { label: 'Peor', value: '$' + parseFloat(m.worst_trade).toFixed(0) },
-                ].map((s, j) => (
-                  <div key={j}>
-                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{s.label}</div>
-                    <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginTop: '2px' }}>{s.value}</div>
-                  </div>
-                ))}
+
+              {/* Row 1: Win, PF, Mejor, Peor */}
+              <div style={{ display: 'flex', gap: '14px', marginTop: '12px', flexWrap: 'wrap' }}>
+                <MetricChip label="Win %" value={m.winRateTrades + '%'} color={m.winRateTrades >= 50 ? 'var(--green)' : 'var(--red)'} />
+                <MetricChip label="Profit F." value={isNaN(pf) ? m.profitFactor : pf.toFixed(2)} color={pf >= 1.5 ? 'var(--green)' : pf >= 1 ? '#f59e0b' : 'var(--red)'} />
+                <MetricChip label="Mejor" value={'+$' + parseFloat(m.best_trade).toFixed(0)} color="var(--green)" />
+                <MetricChip label="Peor" value={'$' + parseFloat(m.worst_trade).toFixed(0)} color="var(--red)" />
+              </div>
+
+              {/* Row 2: Sharpe, Recovery */}
+              <div style={{ display: 'flex', gap: '14px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                <MetricChip label="Sharpe" value={sharpe !== null && sharpe !== undefined ? sharpe : '—'} color={sharpeColor} />
+                <MetricChip label="Recovery F." value={recovery !== null && recovery !== undefined ? recovery : '—'} color={recoveryColor} />
               </div>
             </div>
           );

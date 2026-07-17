@@ -23,32 +23,55 @@ router.get('/', async (req, res) => {
 
     const months = await Promise.all(result.rows.map(async (row) => {
       const dailyResult = await pool.query(`
-        SELECT TO_CHAR(date, 'YYYY-MM-DD') AS date, SUM(pnl) AS day_pnl
+        SELECT SUM(pnl)::float AS day_pnl
         FROM trades
         WHERE EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
         GROUP BY date ORDER BY date ASC
       `, [row.year, row.month]);
 
-      let cumulative = 0;
-      const sparkline = dailyResult.rows.map(d => {
-        cumulative += parseFloat(d.day_pnl);
-        return parseFloat(cumulative.toFixed(2));
-      });
+      const dailyPnls = dailyResult.rows.map(r => parseFloat(r.day_pnl));
 
+      // Sparkline cumulative
+      let cum = 0;
+      const sparkline = dailyPnls.map(p => { cum += p; return parseFloat(cum.toFixed(2)); });
+
+      // Win rate
       const winRateTrades = parseInt(row.total_trades) > 0
         ? Math.round((parseInt(row.winning_trades) / parseInt(row.total_trades)) * 100) : 0;
 
+      // Profit Factor
       const profitFactor = parseFloat(row.gross_loss) > 0
         ? (parseFloat(row.gross_profit) / parseFloat(row.gross_loss)).toFixed(2)
         : parseFloat(row.gross_profit) > 0 ? '∞' : '0';
 
-      return { ...row, sparkline, winRateTrades, profitFactor };
+      // Sharpe Ratio
+      let sharpeRatio = null;
+      if (dailyPnls.length > 1) {
+        const mean = dailyPnls.reduce((s, v) => s + v, 0) / dailyPnls.length;
+        const variance = dailyPnls.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (dailyPnls.length - 1);
+        const stddev = Math.sqrt(variance);
+        sharpeRatio = stddev > 0 ? parseFloat((mean / stddev * Math.sqrt(dailyPnls.length)).toFixed(2)) : null;
+      }
+
+      // Recovery Factor
+      let recoveryFactor = null;
+      if (dailyPnls.length > 0) {
+        let cumulative = 0, peak = 0, maxDD = 0;
+        for (const pnl of dailyPnls) {
+          cumulative += pnl;
+          if (cumulative > peak) peak = cumulative;
+          const dd = peak - cumulative;
+          if (dd > maxDD) maxDD = dd;
+        }
+        const totalPnl = parseFloat(row.total_pnl);
+        recoveryFactor = maxDD > 0 ? parseFloat((totalPnl / maxDD).toFixed(2)) : null;
+      }
+
+      return { ...row, sparkline, winRateTrades, profitFactor, sharpeRatio, recoveryFactor };
     }));
 
     res.json(months);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
