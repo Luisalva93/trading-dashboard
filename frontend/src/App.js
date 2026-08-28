@@ -5,6 +5,7 @@ import PnlChart from './components/PnlChart';
 import TradeModal from './components/TradeModal';
 import MonthlyGoal from './components/MonthlyGoal';
 import ImportExport from './components/ImportExport';
+import SessionSelector from './components/SessionSelector';
 import History from './pages/History';
 import Analysis from './pages/Analysis';
 import { fetchTrades, fetchMonthStats } from './api';
@@ -18,6 +19,7 @@ const NAV = [
 
 export default function App() {
   const now = new Date();
+  const [session, setSession] = useState(() => localStorage.getItem('trading_session') || 'NY');
   const [view, setView] = useState('calendar');
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -27,14 +29,20 @@ export default function App() {
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
 
+  const handleSessionChange = (s) => {
+    setSession(s);
+    localStorage.setItem('trading_session', s);
+    setTrades([]); setStats(null);
+  };
+
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [tradeData, statsData] = await Promise.all([fetchTrades(year, month), fetchMonthStats(year, month)]);
+      const [tradeData, statsData] = await Promise.all([fetchTrades(year, month, session), fetchMonthStats(year, month, session)]);
       setTrades(tradeData); setStats(statsData);
     } catch { setError('No se pudo conectar con el servidor.'); }
     finally { setLoading(false); }
-  }, [year, month]);
+  }, [year, month, session]);
 
   useEffect(() => { if (view === 'calendar') load(); }, [load, view]);
 
@@ -46,7 +54,7 @@ export default function App() {
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: 'clamp(12px, 3vw, 24px) clamp(12px, 3vw, 20px)' }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 'clamp(1rem, 3vw, 1.3rem)', letterSpacing: '-0.01em', color: 'var(--text)' }}>📈 Trading Dashboard</div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -54,20 +62,25 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {view === 'calendar' && (
-            <>
-              <button onClick={prevMonth} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', fontSize: '1.1rem' }}>‹</button>
-              <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: 'clamp(0.85rem, 2vw, 1rem)', color: 'var(--text)', minWidth: '140px', textAlign: 'center' }}>{MONTHS_ES[month-1]} {year}</div>
-              <button onClick={nextMonth} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', fontSize: '1.1rem' }}>›</button>
-              <button onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()+1); }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '8px', padding: '0 12px', height: '36px', cursor: 'pointer', fontSize: '0.8rem' }}>Hoy</button>
-            </>
-          )}
-          <ImportExport onImportDone={load} />
+          <ImportExport session={session} onImportDone={load} />
         </div>
       </div>
 
+      {/* Session selector + nav + month controls */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+        <SessionSelector session={session} onChange={handleSessionChange} />
+        {view === 'calendar' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button onClick={prevMonth} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '8px', width: '34px', height: '34px', cursor: 'pointer', fontSize: '1.1rem' }}>‹</button>
+            <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text)', minWidth: '130px', textAlign: 'center' }}>{MONTHS_ES[month-1]} {year}</div>
+            <button onClick={nextMonth} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '8px', width: '34px', height: '34px', cursor: 'pointer', fontSize: '1.1rem' }}>›</button>
+            <button onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()+1); }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: '8px', padding: '0 12px', height: '34px', cursor: 'pointer', fontSize: '0.8rem' }}>Hoy</button>
+          </div>
+        )}
+      </div>
+
       {/* Nav tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px' }}>
         {NAV.map(n => (
           <button key={n.id} onClick={() => setView(n.id)} style={{
             flex: 1, padding: '8px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer',
@@ -83,21 +96,17 @@ export default function App() {
 
       {view === 'calendar' && (
         <>
-          <MonthlyGoal currentPnl={totalPnl} year={year} month={month} />
+          <MonthlyGoal currentPnl={totalPnl} year={year} month={month} session={session} />
           <StatsBar trades={trades} stats={stats} />
           <PnlChart trades={trades} />
-          {loading ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando...</div>
-          ) : (
-            <Calendar year={year} month={month} trades={trades} onDayClick={(date) => setModal(date)} />
-          )}
+          {loading ? <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando...</div>
+            : <Calendar year={year} month={month} trades={trades} onDayClick={(date) => setModal(date)} />}
         </>
       )}
+      {view === 'history' && <History onSelectMonth={handleSelectMonth} session={session} />}
+      {view === 'analysis' && <Analysis currentYear={year} currentMonth={month} session={session} />}
 
-      {view === 'history' && <History onSelectMonth={handleSelectMonth} />}
-      {view === 'analysis' && <Analysis currentYear={year} currentMonth={month} />}
-
-      {modal && <TradeModal date={modal} onClose={() => setModal(null)} onRefresh={load} />}
+      {modal && <TradeModal date={modal} session={session} onClose={() => setModal(null)} onRefresh={load} />}
     </div>
   );
 }

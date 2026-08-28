@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 
-export default function MonthlyGoal({ currentPnl }) {
+export default function MonthlyGoal({ currentPnl, session }) {
+  const goalKey = `trading_monthly_goal_${session}`;
   const [goal, setGoal] = useState(() => {
-    try { return parseFloat(localStorage.getItem('trading_monthly_goal') || '0'); } catch { return 0; }
+    try { return parseFloat(localStorage.getItem(goalKey) || '0'); } catch { return 0; }
   });
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
@@ -11,44 +12,42 @@ export default function MonthlyGoal({ currentPnl }) {
     const val = parseFloat(input);
     if (!isNaN(val) && val > 0) {
       setGoal(val);
-      try { localStorage.setItem('trading_monthly_goal', val); } catch {}
+      try { localStorage.setItem(goalKey, val); } catch {}
     }
     setEditing(false);
   };
 
-  if (goal === 0) {
-    return (
-      <div style={{ background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: '14px', padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flex: 1 }}>🎯 Define tu meta mensual para ver tu progreso</div>
-        {editing ? (
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input type="number" autoFocus placeholder="ej: 2000" value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && saveGoal()}
-              style={{ width: '110px', background: 'var(--surface2)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '7px 12px', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: '0.95rem', outline: 'none' }} />
-            <button onClick={saveGoal} style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>Guardar</button>
-            <button onClick={() => setEditing(false)} style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>✕</button>
-          </div>
-        ) : (
-          <button onClick={() => { setEditing(true); setInput(''); }} style={{ padding: '7px 16px', borderRadius: '8px', border: '1px solid var(--accent)', background: 'var(--accent-glow)', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>+ Agregar meta</button>
-        )}
-      </div>
-    );
-  }
+  const sessionLabel = session === 'NY' ? '🗽 NY' : '🇬🇧 LDN';
+
+  if (goal === 0) return (
+    <div style={{ background: 'var(--surface)', border: '1px dashed var(--border)', borderRadius: '14px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flex: 1 }}>🎯 Meta mensual {sessionLabel} — sin definir</div>
+      {editing ? (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input type="number" autoFocus placeholder="ej: 1000" value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && saveGoal()}
+            style={{ width: '110px', background: 'var(--surface2)', border: '1px solid var(--accent)', borderRadius: '8px', padding: '7px 12px', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: '0.95rem', outline: 'none' }} />
+          <button onClick={saveGoal} style={{ padding: '7px 16px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
+          <button onClick={() => setEditing(false)} style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</button>
+        </div>
+      ) : (
+        <button onClick={() => { setEditing(true); setInput(''); }}
+          style={{ padding: '7px 16px', borderRadius: '8px', border: '1px solid var(--accent)', background: 'var(--accent-glow)', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
+          + Agregar meta
+        </button>
+      )}
+    </div>
+  );
 
   const pct = Math.min(Math.max((currentPnl / goal) * 100, 0), 100);
   const reached = currentPnl >= goal;
-  const remaining = goal - currentPnl;
   const barColor = reached ? 'var(--green)' : pct >= 70 ? '#f59e0b' : 'var(--accent)';
 
   return (
-    <div style={{
-      background: 'var(--surface)',
-      border: `1px solid ${reached ? 'var(--green-border)' : 'var(--border)'}`,
-      borderRadius: '14px', padding: '14px 18px', marginBottom: '16px',
-    }}>
+    <div style={{ background: 'var(--surface)', border: `1px solid ${reached ? 'var(--green-border)' : 'var(--border)'}`, borderRadius: '14px', padding: '14px 18px', marginBottom: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>🎯 Meta del mes</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>🎯 Meta {sessionLabel}</span>
           {reached && <span style={{ fontSize: '0.68rem', background: 'var(--green-bg)', border: '1px solid var(--green-border)', color: 'var(--green)', borderRadius: '20px', padding: '2px 10px', fontWeight: 700 }}>¡Alcanzada!</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -61,8 +60,8 @@ export default function MonthlyGoal({ currentPnl }) {
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <input type="number" autoFocus value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveGoal()}
                 style={{ width: '80px', background: 'var(--surface2)', border: '1px solid var(--accent)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: '0.85rem', outline: 'none' }} />
-              <button onClick={saveGoal} style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>✓</button>
-              <button onClick={() => setEditing(false)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+              <button onClick={saveGoal} style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>✓</button>
+              <button onClick={() => setEditing(false)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</button>
             </div>
           ) : (
             <button onClick={() => { setEditing(true); setInput(goal.toString()); }} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✏️</button>
@@ -75,7 +74,7 @@ export default function MonthlyGoal({ currentPnl }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{pct.toFixed(0)}% completado</div>
         <div style={{ fontSize: '0.7rem', color: reached ? 'var(--green)' : 'var(--text-muted)' }}>
-          {reached ? `+$${(currentPnl - goal).toFixed(0)} sobre la meta 🎉` : `Faltan $${remaining.toFixed(0)}`}
+          {reached ? `+$${(currentPnl - goal).toFixed(0)} sobre la meta 🎉` : `Faltan $${(goal - currentPnl).toFixed(0)}`}
         </div>
       </div>
     </div>
