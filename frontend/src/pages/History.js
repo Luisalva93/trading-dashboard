@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { fetchHistory } from '../api';
+
 
 const MONTHS_ES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -25,7 +25,7 @@ export default function History({ onSelectMonth, session }) {
 
   useEffect(() => {
     setLoading(true);
-    fetchHistory(session)
+    fetch(BASE + '/api/history?session=' + session).then(r => r.json())
       .then(data => { setMonths(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [session]);
