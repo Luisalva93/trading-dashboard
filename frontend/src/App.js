@@ -35,20 +35,33 @@ export default function App() {
     setTrades([]); setStats(null);
   };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (y, m, s) => {
     setLoading(true); setError(null);
     try {
-      const [tradeData, statsData] = await Promise.all([fetchTrades(year, month, session), fetchMonthStats(year, month, session)]);
+      const [tradeData, statsData] = await Promise.all([
+        fetchTrades(y, m, s),
+        fetchMonthStats(y, m, s)
+      ]);
       setTrades(tradeData); setStats(statsData);
     } catch { setError('No se pudo conectar con el servidor.'); }
     finally { setLoading(false); }
-  }, [year, month, session]);
+  }, []);
 
-  useEffect(() => { if (view === 'calendar') load(); }, [load, view]);
+  // Load whenever year, month or session changes and we're on calendar view
+  useEffect(() => {
+    if (view === 'calendar') load(year, month, session);
+  }, [year, month, session, view, load]);
 
   const prevMonth = () => { if (month === 1) { setYear(y=>y-1); setMonth(12); } else setMonth(m=>m-1); };
   const nextMonth = () => { if (month === 12) { setYear(y=>y+1); setMonth(1); } else setMonth(m=>m+1); };
-  const handleSelectMonth = (y, m) => { setYear(y); setMonth(m); setView('calendar'); };
+
+  // Navigate from history to calendar - set all state then switch view
+  const handleSelectMonth = (y, m) => {
+    setYear(y);
+    setMonth(m);
+    setView('calendar');
+  };
+
   const totalPnl = trades.reduce((s, t) => s + parseFloat(t.pnl), 0);
 
   return (
@@ -61,12 +74,10 @@ export default function App() {
             {view === 'calendar' ? 'Haz clic en cualquier día para registrar trades' : view === 'history' ? 'Resumen de todos tus meses' : 'Análisis psicológico con IA'}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <ImportExport session={session} onImportDone={load} />
-        </div>
+        <ImportExport session={session} onImportDone={() => load(year, month, session)} />
       </div>
 
-      {/* Session selector + nav + month controls */}
+      {/* Session selector + month controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <SessionSelector session={session} onChange={handleSessionChange} />
         {view === 'calendar' && (
@@ -96,17 +107,19 @@ export default function App() {
 
       {view === 'calendar' && (
         <>
-          <MonthlyGoal currentPnl={totalPnl} year={year} month={month} session={session} />
+          <MonthlyGoal currentPnl={totalPnl} session={session} />
           <StatsBar trades={trades} stats={stats} />
           <PnlChart trades={trades} />
-          {loading ? <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando...</div>
-            : <Calendar year={year} month={month} trades={trades} onDayClick={(date) => setModal(date)} />}
+          {loading
+            ? <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando...</div>
+            : <Calendar year={year} month={month} trades={trades} onDayClick={(date) => setModal(date)} />
+          }
         </>
       )}
       {view === 'history' && <History onSelectMonth={handleSelectMonth} session={session} />}
       {view === 'analysis' && <Analysis currentYear={year} currentMonth={month} session={session} />}
 
-      {modal && <TradeModal date={modal} session={session} onClose={() => setModal(null)} onRefresh={load} />}
+      {modal && <TradeModal date={modal} session={session} onClose={() => setModal(null)} onRefresh={() => load(year, month, session)} />}
     </div>
   );
 }

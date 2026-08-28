@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function MonthlyGoal({ currentPnl, session }) {
   const goalKey = `trading_monthly_goal_${session}`;
-  const [goal, setGoal] = useState(() => {
-    try { return parseFloat(localStorage.getItem(goalKey) || '0'); } catch { return 0; }
-  });
+  const [goal, setGoal] = useState(0);
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
+
+  // Reload goal when session changes
+  useEffect(() => {
+    try {
+      const saved = parseFloat(localStorage.getItem(`trading_monthly_goal_${session}`) || '0');
+      setGoal(saved);
+    } catch { setGoal(0); }
+    setEditing(false);
+  }, [session]);
 
   const saveGoal = () => {
     const val = parseFloat(input);
@@ -58,13 +65,15 @@ export default function MonthlyGoal({ currentPnl, session }) {
           </div>
           {editing ? (
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <input type="number" autoFocus value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveGoal()}
+              <input type="number" autoFocus value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveGoal()}
                 style={{ width: '80px', background: 'var(--surface2)', border: '1px solid var(--accent)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text)', fontFamily: 'var(--mono)', fontSize: '0.85rem', outline: 'none' }} />
               <button onClick={saveGoal} style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>✓</button>
               <button onClick={() => setEditing(false)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</button>
             </div>
           ) : (
-            <button onClick={() => { setEditing(true); setInput(goal.toString()); }} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✏️</button>
+            <button onClick={() => { setEditing(true); setInput(goal.toString()); }}
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✏️</button>
           )}
         </div>
       </div>
