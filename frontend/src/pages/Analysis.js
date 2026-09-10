@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 const BASE = process.env.REACT_APP_API_URL || '';
 const MONTHS_ES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const SESSION_LABELS = { NY: '🗽 New York', LDN: '🇬🇧 London', ASIA: '🌏 Asia' };
 
 function parseTable(lines, startIndex) {
   const tableLines = [];
@@ -56,7 +57,7 @@ function renderAnalysis(text) {
 }
 
 export default function Analysis({ currentYear, currentMonth, session }) {
-  const [mode, setMode] = useState('single'); // single | compare
+  const [mode, setMode] = useState('single');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -76,7 +77,10 @@ export default function Analysis({ currentYear, currentMonth, session }) {
       const body = mode === 'compare'
         ? { year: selectedYear, month: selectedMonth }
         : { year: selectedYear, month: selectedMonth, session };
-      const res = await fetch(BASE + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch(BASE + endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al analizar');
       setResult(data);
@@ -84,7 +88,14 @@ export default function Analysis({ currentYear, currentMonth, session }) {
     finally { setLoading(false); }
   };
 
-  const sessionLabel = session === 'NY' ? '🗽 New York' : '🇬🇧 London';
+  const sessionLabel = SESSION_LABELS[session] || session;
+
+  // Sessions to show in compare chips
+  const COMPARE_SESSIONS = [
+    { key: 'nyData', label: '🗽 New York' },
+    { key: 'ldnData', label: '🇬🇧 London' },
+    { key: 'asiaData', label: '🌏 Asia' },
+  ];
 
   return (
     <div style={{ maxWidth: '760px', margin: '0 auto' }}>
@@ -94,10 +105,10 @@ export default function Analysis({ currentYear, currentMonth, session }) {
       </div>
 
       {/* Mode selector */}
-      <div style={{ display: 'flex', gap: '6px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '4px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px', marginBottom: '16px' }}>
         {[
           { id: 'single', label: `Analizar ${sessionLabel}` },
-          { id: 'compare', label: '⚡ Comparar NY vs London' },
+          { id: 'compare', label: '⚡ Comparar NY · LDN · ASIA' },
         ].map(m => (
           <button key={m.id} onClick={() => { setMode(m.id); setResult(null); setError(null); }}
             style={{ flex: 1, padding: '8px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: mode === m.id ? 'var(--accent)' : 'transparent', color: mode === m.id ? '#fff' : 'var(--text-muted)', fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: mode === m.id ? 600 : 400, transition: 'all 0.15s' }}>
@@ -106,6 +117,7 @@ export default function Analysis({ currentYear, currentMonth, session }) {
         ))}
       </div>
 
+      {/* Controls */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '120px' }}>
@@ -125,7 +137,11 @@ export default function Analysis({ currentYear, currentMonth, session }) {
             {loading ? 'Analizando...' : mode === 'compare' ? '⚡ Comparar' : '🧠 Analizar'}
           </button>
         </div>
-        {loading && <div style={{ marginTop: '16px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>Analizando tus trades... ⏳</div>}
+        {loading && (
+          <div style={{ marginTop: '16px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+            Analizando tus trades... ⏳
+          </div>
+        )}
       </div>
 
       {error && <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: '10px', padding: '14px 16px', color: 'var(--red)', fontSize: '0.85rem', marginBottom: '16px' }}>{error}</div>}
@@ -135,32 +151,43 @@ export default function Analysis({ currentYear, currentMonth, session }) {
           {/* Header */}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {mode === 'compare' ? '⚡ Comparación' : `Análisis ${sessionLabel}`} · <strong style={{ color: 'var(--text)' }}>{MONTHS_ES[selectedMonth]} {selectedYear}</strong>
+              {mode === 'compare' ? '⚡ Comparación 3 sesiones' : `Análisis ${sessionLabel}`} · <strong style={{ color: 'var(--text)' }}>{MONTHS_ES[selectedMonth]} {selectedYear}</strong>
             </div>
             {result.totalPnl !== undefined && (
-              <><div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>·</div>
-              <div style={{ fontSize: '0.8rem', color: result.totalPnl >= 0 ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--mono)', fontWeight: 600 }}>{result.totalPnl >= 0 ? '+' : ''}${parseFloat(result.totalPnl).toFixed(0)}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>·</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{result.totalTrades} trades · {result.winRate}% win rate</div></>
+              <>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>·</div>
+                <div style={{ fontSize: '0.8rem', color: parseFloat(result.totalPnl) >= 0 ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--mono)', fontWeight: 600 }}>
+                  {parseFloat(result.totalPnl) >= 0 ? '+' : ''}${parseFloat(result.totalPnl).toFixed(0)}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>·</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{result.totalTrades} trades · {result.winRate}% win rate</div>
+              </>
             )}
           </div>
 
-          {/* Compare summary chips */}
-          {mode === 'compare' && (result.nyData || result.ldnData) && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-              {[{ label: '🗽 New York', data: result.nyData }, { label: '🇬🇧 London', data: result.ldnData }].map((s, i) => (
-                <div key={i} style={{ background: 'var(--surface2)', borderRadius: '10px', padding: '14px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>{s.label}</div>
-                  {s.data ? (
-                    <>
-                      <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '1.1rem', color: parseFloat(s.data.totalPnl) >= 0 ? 'var(--green)' : 'var(--red)', marginBottom: '4px' }}>
-                        {parseFloat(s.data.totalPnl) >= 0 ? '+' : ''}${parseFloat(s.data.totalPnl).toFixed(0)}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{s.data.totalTrades} trades · {s.data.winRate}% win · PF {s.data.profitFactor}</div>
-                    </>
-                  ) : <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sin datos</div>}
-                </div>
-              ))}
+          {/* Compare chips — 3 sessions */}
+          {mode === 'compare' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+              {COMPARE_SESSIONS.map(s => {
+                const data = result[s.key];
+                return (
+                  <div key={s.key} style={{ background: 'var(--surface2)', borderRadius: '10px', padding: '14px' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>{s.label}</div>
+                    {data ? (
+                      <>
+                        <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '1.1rem', color: parseFloat(data.totalPnl) >= 0 ? 'var(--green)' : 'var(--red)', marginBottom: '4px' }}>
+                          {parseFloat(data.totalPnl) >= 0 ? '+' : ''}${parseFloat(data.totalPnl).toFixed(0)}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {data.totalTrades} trades · {data.winRate}% win · PF {data.profitFactor}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', opacity: 0.5 }}>Sin datos</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
