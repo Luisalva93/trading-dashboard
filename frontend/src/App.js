@@ -8,7 +8,7 @@ import ImportExport from './components/ImportExport';
 import SessionSelector from './components/SessionSelector';
 import History from './pages/History';
 import Analysis from './pages/Analysis';
-import { fetchTrades, fetchMonthStats } from './api';
+import { fetchTrades, fetchMonthStats, fetchAllTrades } from './api';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const NAV = [
@@ -24,6 +24,7 @@ export default function App() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [trades, setTrades] = useState([]);
+  const [allTrades, setAllTrades] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -32,17 +33,18 @@ export default function App() {
   const handleSessionChange = (s) => {
     setSession(s);
     localStorage.setItem('trading_session', s);
-    setTrades([]); setStats(null);
+    setTrades([]); setAllTrades([]); setStats(null);
   };
 
   const load = useCallback(async (y, m, s) => {
     setLoading(true); setError(null);
     try {
-      const [tradeData, statsData] = await Promise.all([
+      const [tradeData, statsData, allTradeData] = await Promise.all([
         fetchTrades(y, m, s),
-        fetchMonthStats(y, m, s)
+        fetchMonthStats(y, m, s),
+        fetchAllTrades(y, m, s)
       ]);
-      setTrades(tradeData); setStats(statsData);
+      setTrades(tradeData); setStats(statsData); setAllTrades(allTradeData);
     } catch { setError('No se pudo conectar con el servidor.'); }
     finally { setLoading(false); }
   }, []);
@@ -108,7 +110,7 @@ export default function App() {
       {view === 'calendar' && (
         <>
           <MonthlyGoal currentPnl={totalPnl} session={session} />
-          <StatsBar trades={trades} stats={stats} />
+          <StatsBar trades={trades} stats={stats} allTrades={allTrades} />
           <PnlChart trades={trades} />
           {loading
             ? <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>Cargando...</div>

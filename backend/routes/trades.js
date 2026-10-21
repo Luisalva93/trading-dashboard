@@ -77,26 +77,53 @@ router.get('/stats/:year/:month', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST - add trade with notes and image
+// GET all individual trades for a month (for risk metrics)
+router.get('/all/:year/:month', async (req, res) => {
+  const { year, month } = req.params;
+  const { session = 'NY' } = req.query;
+  try {
+    const result = await pool.query(`
+      SELECT id, TO_CHAR(date, 'YYYY-MM-DD') AS date, pnl, instrument, setup, entry_time,
+             account_size, risk_pct, session
+      FROM trades
+      WHERE EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2 AND session = $3
+      ORDER BY date ASC, created_at ASC
+    `, [year, month, session]);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST - add trade with notes, image, risk
 router.post('/trade', async (req, res) => {
-  const { date, pnl, instrument, setup, entry_time, session = 'NY', notes = '', image_url = '' } = req.body;
+  const { date, pnl, instrument, setup, entry_time, session = 'NY', notes = '', image_url = '', account_size, risk_pct } = req.body;
   if (!date || pnl === undefined) return res.status(400).json({ error: 'date and pnl required' });
+  // Auto-calc risk_pct if account_size provided and pnl is a loss
+  let finalRiskPct = risk_pct !== undefined && risk_pct !== '' ? parseFloat(risk_pct) : null;
+  const finalAccountSize = account_size !== undefined && account_size !== '' ? parseFloat(account_size) : null;
+  if (finalAccountSize && finalRiskPct === null && parseFloat(pnl) < 0) {
+    finalRiskPct = parseFloat((Math.abs(parseFloat(pnl)) / finalAccountSize * 100).toFixed(3));
+  }
   try {
     const result = await pool.query(
-      `INSERT INTO trades (date, pnl, instrument, setup, entry_time, session, notes, image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [date, pnl, instrument || 'MNQ', setup || '', entry_time || '', session, notes, image_url]
+      `INSERT INTO trades (date, pnl, instrument, setup, entry_time, session, notes, image_url, account_size, risk_pct) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [date, pnl, instrument || 'MNQ', setup || '', entry_time || '', session, notes, image_url, finalAccountSize, finalRiskPct]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT - update trade including notes and image
+// PUT - update trade including notes, image, risk
 router.put('/trade/:id', async (req, res) => {
-  const { pnl, instrument, setup, entry_time, notes = '', image_url = '' } = req.body;
+  const { pnl, instrument, setup, entry_time, notes = '', image_url = '', account_size, risk_pct } = req.body;
+  let finalRiskPct = risk_pct !== undefined && risk_pct !== '' ? parseFloat(risk_pct) : null;
+  const finalAccountSize = account_size !== undefined && account_size !== '' ? parseFloat(account_size) : null;
+  if (finalAccountSize && finalRiskPct === null && parseFloat(pnl) < 0) {
+    finalRiskPct = parseFloat((Math.abs(parseFloat(pnl)) / finalAccountSize * 100).toFixed(3));
+  }
   try {
     const result = await pool.query(
-      `UPDATE trades SET pnl=$1, instrument=$2, setup=$3, entry_time=$4, notes=$5, image_url=$6 WHERE id=$7 RETURNING *`,
-      [pnl, instrument || 'MNQ', setup || '', entry_time || '', notes, image_url, req.params.id]
+      `UPDATE trades SET pnl=$1, instrument=$2, setup=$3, entry_time=$4, notes=$5, image_url=$6, account_size=$7, risk_pct=$8 WHERE id=$9 RETURNING *`,
+      [pnl, instrument || 'MNQ', setup || '', entry_time || '', notes, image_url, finalAccountSize, finalRiskPct, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }

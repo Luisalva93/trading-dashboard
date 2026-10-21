@@ -12,6 +12,12 @@ export async function fetchMonthStats(year, month, session = 'NY') {
   return res.json();
 }
 
+export async function fetchAllTrades(year, month, session = 'NY') {
+  const res = await fetch(`${BASE}/api/trades/all/${year}/${month}?session=${session}`);
+  if (!res.ok) throw new Error('Error cargando trades individuales');
+  return res.json();
+}
+
 export async function fetchDayTrades(date, session = 'NY') {
   const res = await fetch(`${BASE}/api/trades/day/${date}?session=${session}`);
   if (!res.ok) throw new Error('Error cargando día');
