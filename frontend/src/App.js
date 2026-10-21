@@ -42,7 +42,7 @@ export default function App() {
       const [tradeData, statsData, allTradeData] = await Promise.all([
         fetchTrades(y, m, s),
         fetchMonthStats(y, m, s),
-        fetchAllTrades(y, m, s)
+        fetchAllTrades(y, m, s).catch(() => [])
       ]);
       setTrades(tradeData); setStats(statsData); setAllTrades(allTradeData);
     } catch { setError('No se pudo conectar con el servidor.'); }
