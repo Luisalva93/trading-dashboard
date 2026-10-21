@@ -97,7 +97,6 @@ router.get('/all/:year/:month', async (req, res) => {
 router.post('/trade', async (req, res) => {
   const { date, pnl, instrument, setup, entry_time, session = 'NY', notes = '', image_url = '', account_size, risk_pct } = req.body;
   if (!date || pnl === undefined) return res.status(400).json({ error: 'date and pnl required' });
-  // Auto-calc risk_pct if account_size provided and pnl is a loss
   let finalRiskPct = risk_pct !== undefined && risk_pct !== '' ? parseFloat(risk_pct) : null;
   const finalAccountSize = account_size !== undefined && account_size !== '' ? parseFloat(account_size) : null;
   if (finalAccountSize && finalRiskPct === null && parseFloat(pnl) < 0) {
