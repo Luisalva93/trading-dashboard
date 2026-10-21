@@ -96,6 +96,27 @@ function ImageUploader({ imageUrl, onImageChange }) {
   );
 }
 
+function RiskDisplay({ pnl, accountSize, riskPct }) {
+  const pnlVal = parseFloat(pnl) || 0;
+  const accVal = parseFloat(accountSize) || 0;
+  const riskVal = parseFloat(riskPct) || 0;
+  if (!accVal && !riskVal) return null;
+  // How much $ does the risk represent
+  let riskDollar = null;
+  if (accVal && riskVal) riskDollar = (accVal * riskVal / 100).toFixed(0);
+  else if (accVal && pnlVal < 0) riskDollar = Math.abs(pnlVal).toFixed(0);
+  const displayPct = riskVal || (accVal && pnlVal < 0 ? (Math.abs(pnlVal) / accVal * 100).toFixed(2) : null);
+  if (!displayPct) return null;
+  const color = parseFloat(displayPct) <= 1 ? 'var(--green)' : parseFloat(displayPct) <= 2 ? '#f59e0b' : 'var(--red)';
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', fontSize: '0.72rem' }}>
+      <span style={{ color: 'var(--text-muted)' }}>Riesgo:</span>
+      <span style={{ color, fontFamily: 'var(--mono)', fontWeight: 700 }}>{parseFloat(displayPct).toFixed(2)}%</span>
+      {riskDollar && <span style={{ color: 'var(--text-muted)' }}>= ${riskDollar}</span>}
+    </div>
+  );
+}
+
 function TradeRow({ trade, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [pnl, setPnl] = useState(trade.pnl);
@@ -104,8 +125,16 @@ function TradeRow({ trade, onUpdate, onDelete }) {
   const [entryTime, setEntryTime] = useState(trade.entry_time || '');
   const [notes, setNotes] = useState(trade.notes || '');
   const [imageUrl, setImageUrl] = useState(trade.image_url || '');
+  const [accountSize, setAccountSize] = useState(trade.account_size || '');
+  const [riskPct, setRiskPct] = useState(trade.risk_pct || '');
   const [lightbox, setLightbox] = useState(false);
   const pnlVal = parseFloat(trade.pnl);
+
+  // Auto-calc risk_pct from account_size + pnl loss when editing
+  const autoRisk = accountSize && pnl && parseFloat(pnl) < 0
+    ? (Math.abs(parseFloat(pnl)) / parseFloat(accountSize) * 100).toFixed(2)
+    : '';
+  const displayRisk = riskPct || autoRisk;
 
   if (editing) return (
     <div style={{ background: 'var(--surface2)', borderRadius: '12px', padding: '14px', marginBottom: '10px', border: '1px solid var(--accent)' }}>
@@ -114,7 +143,20 @@ function TradeRow({ trade, onUpdate, onDelete }) {
         <div><label style={labelStyle}>Hora</label><input style={inputStyle} type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} /></div>
         <div><label style={labelStyle}>Instrumento</label><select style={selectStyle} value={instrument} onChange={e => setInstrument(e.target.value)}>{INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}</select></div>
         <div><label style={labelStyle}>Setup</label><select style={selectStyle} value={setup} onChange={e => setSetup(e.target.value)}><option value="">— Ninguno —</option>{SETUPS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+        <div>
+          <label style={labelStyle}>Tamaño de cuenta ($)</label>
+          <input style={inputStyle} type="number" step="1" placeholder="Ej: 10000" value={accountSize} onChange={e => setAccountSize(e.target.value)} />
+        </div>
+        <div>
+          <label style={labelStyle}>Riesgo % <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(auto si vacío)</span></label>
+          <input style={inputStyle} type="number" step="0.01" placeholder={autoRisk || '1.00'} value={riskPct} onChange={e => setRiskPct(e.target.value)} />
+        </div>
       </div>
+      {(accountSize || riskPct) && (
+        <div style={{ marginBottom: '10px' }}>
+          <RiskDisplay pnl={pnl} accountSize={accountSize} riskPct={riskPct} />
+        </div>
+      )}
       <div style={{ marginBottom: '10px' }}>
         <label style={labelStyle}>Notas del trade</label>
         <textarea placeholder="¿Qué pasó en este trade?" value={notes} onChange={e => setNotes(e.target.value)}
@@ -126,11 +168,16 @@ function TradeRow({ trade, onUpdate, onDelete }) {
       <div style={{ display: 'flex', gap: '8px' }}>
         <button onClick={() => onDelete(trade.id)} style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--red-border)', background: 'transparent', color: 'var(--red)', cursor: 'pointer', fontSize: '0.8rem' }}>Eliminar</button>
         <button onClick={() => setEditing(false)} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>Cancelar</button>
-        <button onClick={() => { onUpdate(trade.id, { pnl: parseFloat(pnl), instrument, setup, entry_time: entryTime, notes, image_url: imageUrl }); setEditing(false); }}
+        <button onClick={() => { onUpdate(trade.id, { pnl: parseFloat(pnl), instrument, setup, entry_time: entryTime, notes, image_url: imageUrl, account_size: accountSize || null, risk_pct: riskPct || null }); setEditing(false); }}
           style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
       </div>
     </div>
   );
+
+  // View mode risk chip
+  const tradeRiskPct = trade.risk_pct ? parseFloat(trade.risk_pct) : null;
+  const tradeAccSize = trade.account_size ? parseFloat(trade.account_size) : null;
+  const riskDollar = tradeAccSize && tradeRiskPct ? (tradeAccSize * tradeRiskPct / 100).toFixed(0) : null;
 
   return (
     <div style={{ background: 'var(--surface2)', borderRadius: '12px', marginBottom: '8px', border: `1px solid ${pnlVal > 0 ? 'var(--green-border)' : pnlVal < 0 ? 'var(--red-border)' : 'var(--border)'}`, overflow: 'hidden' }}>
@@ -141,6 +188,13 @@ function TradeRow({ trade, onUpdate, onDelete }) {
             <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
               {trade.instrument || 'MNQ'}{trade.setup ? ` · ${trade.setup}` : ''}{trade.entry_time ? ` · ${trade.entry_time}` : ''}
             </div>
+            {tradeRiskPct && (
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>⚠️</span>
+                <span style={{ color: tradeRiskPct <= 1 ? 'var(--green)' : tradeRiskPct <= 2 ? '#f59e0b' : 'var(--red)', fontFamily: 'var(--mono)', fontWeight: 600 }}>{tradeRiskPct.toFixed(2)}% riesgo</span>
+                {riskDollar && <span style={{ color: 'var(--text-muted)' }}>· ${riskDollar}</span>}
+              </div>
+            )}
             {trade.notes && (
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 📝 {trade.notes}
@@ -186,6 +240,8 @@ export default function TradeModal({ date, session, onClose, onRefresh }) {
   const [newEntryTime, setNewEntryTime] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [newAccountSize, setNewAccountSize] = useState('');
+  const [newRiskPct, setNewRiskPct] = useState('');
 
   const [y, m, d] = date.split('-').map(Number);
   const formatted = new Date(y, m-1, d).toLocaleDateString('es-MX', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -205,10 +261,13 @@ export default function TradeModal({ date, session, onClose, onRefresh }) {
   const totalPnl = dayData.trades.reduce((s, t) => s + parseFloat(t.pnl), 0);
   const wins = dayData.trades.filter(t => parseFloat(t.pnl) > 0).length;
 
+  const newAutoRisk = newAccountSize && newPnl && parseFloat(newPnl) < 0
+    ? (Math.abs(parseFloat(newPnl)) / parseFloat(newAccountSize) * 100).toFixed(2) : '';
+
   const handleAddTrade = async () => {
     if (newPnl === '') return;
-    await addTrade({ date, pnl: parseFloat(newPnl), instrument: newInstrument, setup: newSetup, entry_time: newEntryTime, session, notes: newNotes, image_url: newImageUrl });
-    setNewPnl(''); setNewSetup(''); setNewEntryTime(''); setNewNotes(''); setNewImageUrl('');
+    await addTrade({ date, pnl: parseFloat(newPnl), instrument: newInstrument, setup: newSetup, entry_time: newEntryTime, session, notes: newNotes, image_url: newImageUrl, account_size: newAccountSize || null, risk_pct: newRiskPct || null });
+    setNewPnl(''); setNewSetup(''); setNewEntryTime(''); setNewNotes(''); setNewImageUrl(''); setNewAccountSize(''); setNewRiskPct('');
     setShowAddForm(false);
     await load(); onRefresh();
   };
@@ -258,7 +317,20 @@ export default function TradeModal({ date, session, onClose, onRefresh }) {
                   <div><label style={labelStyle}>Hora entrada</label><input style={inputStyle} type="time" value={newEntryTime} onChange={e => setNewEntryTime(e.target.value)} /></div>
                   <div><label style={labelStyle}>Instrumento</label><select style={selectStyle} value={newInstrument} onChange={e => setNewInstrument(e.target.value)}>{INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}</select></div>
                   <div><label style={labelStyle}>Setup</label><select style={selectStyle} value={newSetup} onChange={e => setNewSetup(e.target.value)}><option value="">— Ninguno —</option>{SETUPS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                  <div>
+                    <label style={labelStyle}>Tamaño de cuenta ($)</label>
+                    <input style={inputStyle} type="number" step="1" placeholder="Ej: 10000" value={newAccountSize} onChange={e => setNewAccountSize(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Riesgo % <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(auto si vacío)</span></label>
+                    <input style={inputStyle} type="number" step="0.01" placeholder={newAutoRisk || '1.00'} value={newRiskPct} onChange={e => setNewRiskPct(e.target.value)} />
+                  </div>
                 </div>
+                {(newAccountSize || newRiskPct) && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <RiskDisplay pnl={newPnl} accountSize={newAccountSize} riskPct={newRiskPct} />
+                  </div>
+                )}
                 <div style={{ marginBottom: '10px' }}>
                   <label style={labelStyle}>Notas del trade</label>
                   <textarea placeholder="¿Qué pasó? Entrada, salida, emociones..." value={newNotes} onChange={e => setNewNotes(e.target.value)}
