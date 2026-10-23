@@ -39,11 +39,13 @@ async function initDB() {
       `ALTER TABLE trade_days ADD COLUMN IF NOT EXISTS session VARCHAR(20) DEFAULT 'NY'`,
       `UPDATE trades SET session = 'NY' WHERE session IS NULL`,
       `UPDATE trade_days SET session = 'NY' WHERE session IS NULL`,
+      `ALTER TABLE trades ADD COLUMN IF NOT EXISTS account_size NUMERIC(12,2)`,
+      `ALTER TABLE trades ADD COLUMN IF NOT EXISTS risk_pct NUMERIC(6,3)`,
     ];
     for (const sql of migrations) { await client.query(sql).catch(() => {}); }
     await client.query(`DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trade_days_date_key') THEN ALTER TABLE trade_days DROP CONSTRAINT trade_days_date_key; END IF; END $$;`).catch(() => {});
     await client.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trade_days_date_session_key') THEN ALTER TABLE trade_days ADD CONSTRAINT trade_days_date_session_key UNIQUE (date, session); END IF; END $$;`).catch(() => {});
-    console.log('Database ready v10 - notes and images per trade');
+    console.log('Database ready v12 - risk % and account size per trade');
   } finally { client.release(); }
 }
 
