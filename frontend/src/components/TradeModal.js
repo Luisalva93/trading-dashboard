@@ -168,15 +168,15 @@ function TradeRow({ trade, onUpdate, onDelete }) {
       <div style={{ display: 'flex', gap: '8px' }}>
         <button onClick={() => onDelete(trade.id)} style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--red-border)', background: 'transparent', color: 'var(--red)', cursor: 'pointer', fontSize: '0.8rem' }}>Eliminar</button>
         <button onClick={() => setEditing(false)} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>Cancelar</button>
-        <button onClick={() => { onUpdate(trade.id, { pnl: parseFloat(pnl), instrument, setup, entry_time: entryTime, notes, image_url: imageUrl, account_size: accountSize || null, risk_pct: riskPct || null }); setEditing(false); }}
+        <button onClick={() => { const safeAcc = accountSize && !isNaN(parseFloat(accountSize)) ? parseFloat(accountSize) : null; const safeRisk = riskPct && !isNaN(parseFloat(riskPct)) ? parseFloat(riskPct) : null; onUpdate(trade.id, { pnl: parseFloat(pnl), instrument, setup, entry_time: entryTime, notes, image_url: imageUrl, account_size: safeAcc, risk_pct: safeRisk }); setEditing(false); }}
           style={{ flex: 2, padding: '9px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
       </div>
     </div>
   );
 
   // View mode risk chip
-  const tradeRiskPct = trade.risk_pct ? parseFloat(trade.risk_pct) : null;
-  const tradeAccSize = trade.account_size ? parseFloat(trade.account_size) : null;
+  const tradeRiskPct = trade.risk_pct && !isNaN(parseFloat(trade.risk_pct)) ? parseFloat(trade.risk_pct) : null;
+  const tradeAccSize = trade.account_size && !isNaN(parseFloat(trade.account_size)) ? parseFloat(trade.account_size) : null;
   const riskDollar = tradeAccSize && tradeRiskPct ? (tradeAccSize * tradeRiskPct / 100).toFixed(0) : null;
 
   return (
@@ -266,7 +266,9 @@ export default function TradeModal({ date, session, onClose, onRefresh }) {
 
   const handleAddTrade = async () => {
     if (newPnl === '') return;
-    await addTrade({ date, pnl: parseFloat(newPnl), instrument: newInstrument, setup: newSetup, entry_time: newEntryTime, session, notes: newNotes, image_url: newImageUrl, account_size: newAccountSize || null, risk_pct: newRiskPct || null });
+    const safeAccountSize = newAccountSize && !isNaN(parseFloat(newAccountSize)) ? parseFloat(newAccountSize) : null;
+    const safeRiskPct = newRiskPct && !isNaN(parseFloat(newRiskPct)) ? parseFloat(newRiskPct) : null;
+    await addTrade({ date, pnl: parseFloat(newPnl), instrument: newInstrument, setup: newSetup, entry_time: newEntryTime, session, notes: newNotes, image_url: newImageUrl, account_size: safeAccountSize, risk_pct: safeRiskPct });
     setNewPnl(''); setNewSetup(''); setNewEntryTime(''); setNewNotes(''); setNewImageUrl(''); setNewAccountSize(''); setNewRiskPct('');
     setShowAddForm(false);
     await load(); onRefresh();
